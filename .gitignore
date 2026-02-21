@@ -82,3 +82,24 @@ venv/
 
 # written by setuptools_scm
 **/_version.py
+
+# runtime logs
+curation_logs/
+
+# local backups
+*.bak
+*.bak_*
+
+# large data
+*.tif
+*.tiff
+*.ome.tif
+
+# local big test data / logs
+*.tif
+*.tiff
+curation_logs/
+
+# backups
+*.bak
+*.bak_*
