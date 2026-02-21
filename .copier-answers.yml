@@ -1,0 +1,21 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v2.0.1
+_src_path: https://github.com/napari/napari-plugin-template.git
+display_name: Manual Labels Editor
+email: liyaohua12345@foxmail.com
+full_name: Yaohua Li
+github_repository_url: provide later
+github_username_or_organization: 'yaohualee1215-bit
+
+    '
+include_reader_plugin: true
+include_sample_data_plugin: true
+include_widget_plugin: true
+include_writer_plugin: true
+install_dependabot: true
+install_precommit: true
+license: BSD-3
+module_name: napari_manual_labels_editor
+plugin_name: napari-manual-labels-editor
+short_description: 'Manual fine-tuning toolkit for napari Labels: compute stats, assign
+    new IDs, delete/merge labels, relabel to 1..N, and save LZW BigTIFF safely.'

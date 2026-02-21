@@ -1,0 +1,63 @@
+name: napari-manual-labels-editor
+display_name: Manual Labels Editor
+# use 'hidden' to remove plugin from napari hub search results
+visibility: public
+# see https://napari.org/stable/plugins/technical_references/manifest.html#fields for valid categories
+# categories: []
+contributions:
+  commands:
+    - id: napari-manual-labels-editor.get_reader
+      python_name: napari_manual_labels_editor._reader:napari_get_reader
+      title: Open data with Manual Labels Editor
+    - id: napari-manual-labels-editor.write_multiple
+      python_name: napari_manual_labels_editor._writer:write_multiple
+      title: Save multi-layer data with Manual Labels Editor
+    - id: napari-manual-labels-editor.write_single_image
+      python_name: napari_manual_labels_editor._writer:write_single_image
+      title: Save image data with Manual Labels Editor
+    - id: napari-manual-labels-editor.make_sample_data
+      python_name: napari_manual_labels_editor._sample_data:make_sample_data
+      title: Load sample data from Manual Labels Editor
+    - id: napari-manual-labels-editor.make_container_widget
+      python_name: napari_manual_labels_editor:ImageThreshold
+      title: Make threshold Container widget
+    - id: napari-manual-labels-editor.make_magic_widget
+      python_name: napari_manual_labels_editor:threshold_magic_widget
+      title: Make threshold magic widget
+    - id: napari-manual-labels-editor.make_function_widget
+      python_name: napari_manual_labels_editor:threshold_autogenerate_widget
+      title: Make threshold function widget
+    - id: napari-manual-labels-editor.make_qwidget
+      python_name: napari_manual_labels_editor:ExampleQWidget
+      title: Make example QWidget
+  readers:
+    - command: napari-manual-labels-editor.get_reader
+      accepts_directories: false
+      filename_patterns: ['*.npy']
+  writers:
+    - command: napari-manual-labels-editor.write_multiple
+      layer_types: ['image*','labels*']
+      filename_extensions: []
+    - command: napari-manual-labels-editor.write_single_image
+      layer_types: ['image']
+      filename_extensions: ['.npy']
+  sample_data:
+    - command: napari-manual-labels-editor.make_sample_data
+      display_name: Manual Labels Editor
+      key: unique_id.1
+  widgets:
+    - command: napari-manual-labels-editor.make_container_widget
+      display_name: Container Threshold
+    - command: napari-manual-labels-editor.make_magic_widget
+      display_name: Magic Threshold
+    - command: napari-manual-labels-editor.make_function_widget
+      autogenerate: true
+      display_name: Autogenerate Threshold
+    - command: napari-manual-labels-editor.make_qwidget
+      display_name: Example QWidget
+  menus:
+    napari/layers/segment:
+      - command: napari-manual-labels-editor.make_container_widget
+      - command: napari-manual-labels-editor.make_magic_widget
+      - command: napari-manual-labels-editor.make_function_widget
+      - command: napari-manual-labels-editor.make_qwidget
