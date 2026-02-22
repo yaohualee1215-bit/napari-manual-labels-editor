@@ -1,75 +1,146 @@
 # napari-manual-labels-editor
 
-[![License BSD-3](https://img.shields.io/pypi/l/napari-manual-labels-editor.svg?color=green)](https://github.com/yaohualee1215-bit
-/napari-manual-labels-editor/raw/main/LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/napari-manual-labels-editor.svg?color=green)](https://pypi.org/project/napari-manual-labels-editor)
-[![Python Version](https://img.shields.io/pypi/pyversions/napari-manual-labels-editor.svg?color=green)](https://python.org)
-[![tests](https://github.com/yaohualee1215-bit
-/napari-manual-labels-editor/workflows/tests/badge.svg)](https://github.com/yaohualee1215-bit
-/napari-manual-labels-editor/actions)
-[![codecov](https://codecov.io/gh/yaohualee1215-bit
-/napari-manual-labels-editor/branch/main/graph/badge.svg)](https://codecov.io/gh/yaohualee1215-bit
-/napari-manual-labels-editor)
-[![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-manual-labels-editor)](https://napari-hub.org/plugins/napari-manual-labels-editor)
-[![npe2](https://img.shields.io/badge/plugin-npe2-blue?link=https://napari.org/stable/plugins/index.html)](https://napari.org/stable/plugins/index.html)
-[![Copier](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/copier-org/copier/master/img/badge/badge-grayscale-inverted-border-purple.json)](https://github.com/copier-org/copier)
+Manual fine‑tuning toolkit for **napari Labels** (integer label masks).
+Designed for “after segmentation” workflows where you need to **inspect, fix, and export** large label images safely (e.g., TIFF/LZW/BigTIFF).
 
-Manual fine-tuning toolkit for napari Labels: compute stats, assign new IDs, delete/merge labels, relabel to 1..N, and save LZW BigTIFF safely.
+---
 
-----------------------------------
+## What it does
 
-This [napari] plugin was generated with [copier] using the [napari-plugin-template] (None).
+This plugin operates on a **napari Labels layer** (background must be `0`) and provides a small, fast panel to:
 
-<!--
-Don't miss the full getting started guide to set up your new package:
-https://github.com/napari/napari-plugin-template#getting-started
+- **Pick Active Layer**: choose the current active Image/Labels layer; if it’s an Image, it can be converted to Labels (integer).
+- **Compute Stats (safe)**: compute `maxID` and `cells` without heavy `np.unique` (safer for large arrays).
+- **New ID (max+1)**: set selected label to `maxID + 1` so you can paint a new object.
+- **Delete selected ID**: delete the currently selected label ID (set its pixels to `0`).
+- **Compact IDs Order (1..N)**: relabel present IDs to consecutive `1..N` (useful before export).
+- **Merge (Shift+A+B → A)**: when merge is enabled, **Shift‑click A, then Shift‑click B** to merge **B → A**.
 
-and review the napari docs for plugin developers:
-https://napari.org/stable/plugins/index.html
--->
+Export:
+- **Save labels to TIFF (LZW)** (BigTIFF enabled).
+  If you provide a directory as “Save path”, the plugin will auto‑append a filename.
+
+---
+
+## Compatibility
+
+- Python: 3.10–3.13 (tested on 3.11)
+- napari: 0.6.x
+- Layer type: **Labels** (integer), background `0`
+
+---
 
 ## Installation
 
-You can install `napari-manual-labels-editor` via [pip]:
+### From PyPI (recommended)
 
-```
+```bash
 pip install napari-manual-labels-editor
 ```
 
-If napari is not already installed, you can install `napari-manual-labels-editor` with napari and Qt via:
+If you don’t have napari yet:
 
+```bash
+pip install "napari[all]" napari-manual-labels-editor
 ```
-pip install "napari-manual-labels-editor[all]"
+
+### From GitHub (latest main)
+
+```bash
+pip install -U "git+https://github.com/yaohualee1215-bit/napari-manual-labels-editor.git"
 ```
 
+---
 
+## Usage (inside napari)
 
-## Contributing
+1. Launch napari and load your **Labels** layer (and optional background image).
+2. Open the plugin panel:
+   - **Plugins → Manual Labels Editor → Manual Labels Editor**
+3. Click **Pick Active Layer (Image or Labels)**
+   - Make sure the layer you want is the *active* layer in the layer list first.
+4. Click **Compute Stats (safe)**
+   - The status area will show `selected`, `cells`, `maxID`, and merge state.
+5. Editing actions:
+   - **New ID (max+1)** → then paint to add a new label
+   - **Delete selected ID** → remove a label
+   - **Compact IDs Order (1..N)** → relabel to 1..N
+   - **Merge (Shift+A+B → A)** → enable merge, then Shift‑click label A then label B
+6. Export:
+   - Set **Save path** (file path or directory)
+   - Click **Save labels to TIFF (LZW)**
 
-Contributions are very welcome. Tests can be run with [tox], please ensure
-the coverage at least stays the same before you submit a pull request.
+### Notes
+
+- **Huge LZW TIFF**: if LZW read/write fails or is slow, install `imagecodecs`:
+  ```bash
+  conda install -c conda-forge imagecodecs
+  ```
+
+---
+
+## Output / Export details
+
+- TIFF writer uses:
+  - `compression="lzw"`
+  - `bigtiff=True`
+- If “Save path” is a directory, output becomes:
+  - `<dir>/<layer_name>_edited_LZW.tif` (or your configured suffix)
+
+---
+
+## Publish to PyPI (maintainers)
+
+> Maintainer-only. Regular users should install from PyPI above.
+
+### One-time: set API token
+
+```bash
+export TWINE_USERNAME="__token__"
+export TWINE_PASSWORD="pypi-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+### Release workflow (one block)
+
+```bash
+# from repo root
+# 1) bump version in pyproject.toml (e.g., 0.1.0 -> 0.1.1)
+
+# 2) run checks
+pre-commit run --all-files
+
+# 3) build + upload
+python -m pip install -U build twine
+rm -rf dist build *.egg-info
+python -m build
+twine check dist/*
+twine upload dist/*
+
+# 4) tag on GitHub
+git tag v0.1.1
+git push --tags
+```
+
+### Clean env smoke test (optional)
+
+```bash
+conda create -n napari-mlabels-test -y python=3.11
+conda activate napari-mlabels-test
+python -m pip install -U pip
+python -m pip install napari-manual-labels-editor
+
+python - <<'PY'
+import importlib.metadata as im
+print("pkg version:", im.version("napari-manual-labels-editor"))
+eps=[e for e in im.entry_points(group="napari.manifest") if "manual-labels-editor" in e.name]
+print("entrypoints:", eps)
+PY
+
+napari
+```
+
+---
 
 ## License
 
-Distributed under the terms of the [BSD-3] license,
-"napari-manual-labels-editor" is free and open source software
-
-## Issues
-
-If you encounter any problems, please [file an issue] along with a detailed description.
-
-[napari]: https://github.com/napari/napari
-[copier]: https://copier.readthedocs.io/en/stable/
-[@napari]: https://github.com/napari
-[MIT]: http://opensource.org/licenses/MIT
-[BSD-3]: http://opensource.org/licenses/BSD-3-Clause
-[GNU GPL v3.0]: http://www.gnu.org/licenses/gpl-3.0.txt
-[GNU LGPL v3.0]: http://www.gnu.org/licenses/lgpl-3.0.txt
-[Apache Software License 2.0]: http://www.apache.org/licenses/LICENSE-2.0
-[Mozilla Public License 2.0]: https://www.mozilla.org/media/MPL/2.0/index.txt
-[napari-plugin-template]: https://github.com/napari/napari-plugin-template
-
-[napari]: https://github.com/napari/napari
-[tox]: https://tox.readthedocs.io/en/latest/
-[pip]: https://pypi.org/project/pip/
-[PyPI]: https://pypi.org/
+BSD-3-Clause
