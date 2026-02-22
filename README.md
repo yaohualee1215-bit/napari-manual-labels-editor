@@ -1,7 +1,7 @@
 # napari-manual-labels-editor
 
 Manual fine-tuning toolkit for **napari Labels** (integer label masks).
-Designed for “after segmentation” workflows where you need to **inspect, fix, and export** large label images safely (e.g., TIFF/LZW/BigTIFF).
+Designed for “after segmentation” workflows where you need to **inspect, fix, and export** large label images safely (e.g., TIFF/LZW/BigTIFF). Tutorial video: https://www.youtube.com/watch?v=cQf_7ExGQHk&t=15s
 
 ## What it does
 
