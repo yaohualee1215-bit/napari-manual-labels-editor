@@ -64,6 +64,14 @@ pip install -U "git+https://github.com/yaohualee1215-bit/napari-manual-labels-ed
 - **Compact IDs Order (1..N)** → relabel to `1..N`
 - **Merge (Shift-click)** → enable merge, then Shift-click label **A** then label **B** to merge **B → A**
 
+## New in v0.1.1
+
+- Added local closed-shape fill (draw a closed outline, then fill inside).
+- Added small-label area filtering to a **new layer** (keeps original layer unchanged).
+- Added undo/redo for merge and delete (recent edits only).
+- Added automatic refresh after merge/delete so edits display immediately.
+- Added blink controls for quick visual checking after edits.
+
 ### Export
 
 1. Set **Save path** (file path or directory)
