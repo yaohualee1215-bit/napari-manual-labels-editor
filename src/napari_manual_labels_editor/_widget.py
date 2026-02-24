@@ -5,6 +5,7 @@ from collections import deque
 
 
 import os
+import napari
 from qtpy.QtCore import QTimer
 import numpy as np
 from scipy import ndimage as ndi
@@ -924,3 +925,18 @@ class ManualLabelsEditor(QWidget):
         return _btn
 
     # ---------- keyboard shortcuts ----------
+
+
+# -------------------------
+# napari widget factory (MUST be top-level)
+# -------------------------
+def make_manual_labels_editor_widget(viewer: Viewer | None = None) -> QWidget:
+    """Napari widget factory (npe2)."""
+    if viewer is None:
+        try:
+            viewer = napari.current_viewer()
+        except Exception as e:
+            raise RuntimeError(
+                "No active napari viewer found. Open napari first."
+            ) from e
+    return ManualLabelsEditor(viewer)

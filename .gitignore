@@ -103,3 +103,27 @@ curation_logs/
 # backups
 *.bak
 *.bak_*
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Lint/test cache
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# macOS
+.DS_Store
+
+# local logs
+curation_logs/
+
+# local backup files
+src/napari_manual_labels_editor/_widget.py.bak*
