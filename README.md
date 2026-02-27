@@ -1,7 +1,9 @@
 # napari-manual-labels-editor
 
 Manual fine-tuning toolkit for **napari Labels** (integer label masks).
-Designed for “after segmentation” workflows where you need to **inspect, fix, and export** large label images safely (e.g., TIFF/LZW/BigTIFF). Tutorial video: https://www.youtube.com/watch?v=cQf_7ExGQHk&t=15s
+Designed for “after segmentation” workflows where you need to **inspect, fix, and export** large label images safely (e.g., TIFF/LZW/BigTIFF).
+
+Tutorial video: https://www.youtube.com/watch?v=cQf_7ExGQHk&t=15s
 
 ## What it does
 
@@ -13,6 +15,10 @@ This plugin operates on a **napari Labels layer** (background must be `0`) and p
 - **Delete selected ID**: delete the currently selected label ID (set its pixels to `0`).
 - **Compact IDs Order (1..N)**: relabel present IDs to consecutive `1..N` (useful before export).
 - **Merge (Shift-click)**: when merge is enabled, **Shift-click A**, then **Shift-click B** to merge **B → A** (into A).
+- **Fill closed shape**: draw a closed outline, then fill the enclosed region for the selected label.
+- **Filter small labels (to new layer)**: remove tiny fragments by area threshold while keeping the original layer unchanged.
+- **Undo / Redo**: revert recent edits made through the plugin’s actions.
+- **Blink**: quick visibility toggling for spot-checking edits.
 
 Export:
 
@@ -54,23 +60,26 @@ pip install -U "git+https://github.com/yaohualee1215-bit/napari-manual-labels-ed
 
 3. Click **Pick Active Layer (Image or Labels)**
    Make sure the layer you want is the **active** layer in the layer list first.
-4. Click **Compute Stats (safe)**
+4. (Optional but recommended) Click **Compute Stats (safe)**
    The status area will show `selected`, `cells`, `maxID`, and `merge` state.
 
-### Editing actions
+### Hotkeys
 
-- **New ID (max+1)** → then paint to add a new label
-- **Delete selected ID** → remove a label
-- **Compact IDs Order (1..N)** → relabel to `1..N`
-- **Merge (Shift-click)** → enable merge, then Shift-click label **A** then label **B** to merge **B → A**
+These are convenience hotkeys for faster manual editing.
 
-## New in v0.1.2
+- `N` — **New ID (max+1)**
+- `F` — **Fill closed shape**
+- `Shift+F` — **Fill closed shape + Next ID**
 
-- Added local closed-shape fill (draw a closed outline, then fill inside).
-- Added small-label area filtering to a **new layer** (keeps original layer unchanged).
-- Added undo/redo for merge and delete (recent edits only).
-- Added automatic refresh after merge/delete so edits display immediately.
-- Added blink controls for quick visual checking after edits.
+Notes:
+- Hotkeys are captured by the napari viewer. If a key seems unresponsive, **click once on the canvas** to give the viewer focus.
+- napari also has its own built-in tools/hotkeys (e.g., paint/fill modes); you can keep using those alongside this plugin.
+
+### Undo / Redo behavior
+
+- Undo/Redo reverts **recent pixel edits** made via the plugin’s actions (e.g., fill closed, delete, merge, relabel/filter).
+- **Changing the selected label / “New ID” alone does not change pixels**, so it is not treated as an edit step to undo.
+- Standard behavior: if you Undo and then make a new edit, the Redo history is cleared.
 
 ### Export
 
@@ -92,48 +101,6 @@ If LZW read/write fails or is slow, install `imagecodecs`:
 conda install -c conda-forge imagecodecs
 ```
 
-## Publish to PyPI (maintainers)
-
-Maintainer-only. Regular users should install from PyPI above.
-
-### Release workflow (one block)
-
-```bash
-# from repo root
-# 1) bump version in pyproject.toml (e.g., 0.1.0 -> 0.1.1)
-
-# 2) run checks
-pre-commit run --all-files
-
-# 3) build + upload
-python -m pip install -U build twine
-rm -rf dist build *.egg-info
-python -m build
-twine check dist/*
-twine upload dist/*
-
-# 4) tag on GitHub
-git tag v0.1.1
-git push --tags
-```
-
-### Clean env smoke test (optional)
-
-```bash
-conda create -n napari-mlabels-test -y python=3.11
-conda activate napari-mlabels-test
-python -m pip install -U pip
-python -m pip install napari-manual-labels-editor
-
-python - <<'PY'
-import importlib.metadata as im
-print("pkg version:", im.version("napari-manual-labels-editor"))
-eps = [e for e in im.entry_points(group="napari.manifest") if "manual-labels-editor" in e.name]
-print("entrypoints:", eps)
-PY
-
-napari
-```
 
 ## License
 

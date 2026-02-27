@@ -6,6 +6,7 @@ from collections import deque
 
 import os
 import napari
+from napari.utils.notifications import show_info
 from qtpy.QtCore import QTimer
 import numpy as np
 from scipy import ndimage as ndi
@@ -186,6 +187,7 @@ class ManualLabelsEditor(QWidget):
         root.addLayout(blink_row)
 
         self.btn_blink_toggle.clicked.connect(self._toggle_blink_running)
+        self._register_shortcuts()
         self.btn_undo.clicked.connect(self._undo_last)
         self.btn_redo.clicked.connect(self._redo_last)
         self.btn_blink_05.clicked.connect(
@@ -232,6 +234,13 @@ class ManualLabelsEditor(QWidget):
         # Convert Image -> Labels (or keep Labels)
         self.layer = _ensure_labels_layer(self.viewer, layer)
 
+        # auto-sync stats so New ID / next step works without Compute Stats
+        try:
+            self.state.max_id = int(np.max(self.layer.data))
+        except Exception:
+            self.state.max_id = None
+        self._update_panel_status()
+        self._bind_layer_hotkeys()
         # Ensure callbacks are attached
         try:
             if self._on_mouse_move not in self.layer.mouse_move_callbacks:
@@ -397,9 +406,11 @@ class ManualLabelsEditor(QWidget):
         if self.layer is None:
             return
         if self.state.max_id is None:
-            return
-        nid = int(self.state.max_id) + 1
+            self.state.max_id = int(np.max(self.layer.data))
+
+        nid = int(np.max(self.layer.data)) + 1
         self.layer.selected_label = nid
+        self.state.max_id = nid
         self._update_panel_status()
 
     def _delete_selected(self):
@@ -857,7 +868,7 @@ class ManualLabelsEditor(QWidget):
         )
 
     def _make_btn_fill_closed(self):
-        @magicgui(call_button="Fill Closed Shape (selected label, local bbox)")
+        @magicgui(call_button="Fill closed shape (Shift+F)")
         def _btn():
             self._fill_closed_shape_local_bbox()
 
@@ -925,6 +936,44 @@ class ManualLabelsEditor(QWidget):
         return _btn
 
     # ---------- keyboard shortcuts ----------
+    def _bind_layer_hotkeys(self) -> None:
+        # Bind hotkeys on the active Labels layer (higher priority than viewer)
+        if self.layer is None:
+            return
+        L = self.layer
+
+        @L.bind_key("n", overwrite=True)
+        def _lk_new_id(layer):
+            self._new_id()
+
+        @L.bind_key("f", overwrite=True)
+        def _lk_fill(layer):
+            self._fill_closed_shape_local_bbox()
+
+        @L.bind_key("Shift-f", overwrite=True)
+        def _lk_fill_next(layer):
+            self._fill_closed_shape_local_bbox()
+            self._new_id()
+
+    def _register_shortcuts(self) -> None:
+        v = self.viewer
+
+        @v.bind_key("n", overwrite=True)
+        def _k_new_id(viewer):
+            # N = new ID (max+1)
+            self._new_id()
+
+        @v.bind_key("f", overwrite=True)
+        def _k_fill_closed(viewer):
+            # F = fill closed shape (your existing implementation)
+            self._fill_closed_shape_local_bbox()
+
+        @v.bind_key("Shift-f", overwrite=True)
+        def _k_fill_and_next(viewer):
+            show_info("hotkey: Shift-f")
+            # Shift+F = fill then auto-next-id
+            self._fill_closed_shape_local_bbox()
+            self._new_id()
 
 
 # -------------------------
@@ -939,4 +988,9 @@ def make_manual_labels_editor_widget(viewer: Viewer | None = None) -> QWidget:
             raise RuntimeError(
                 "No active napari viewer found. Open napari first."
             ) from e
-    return ManualLabelsEditor(viewer)
+    w = ManualLabelsEditor(viewer)
+    try:
+        w._register_shortcuts()
+    except Exception as e:
+        print("[ManualLabelsEditor] hotkey register failed:", e)
+    return w
