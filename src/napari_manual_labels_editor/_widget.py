@@ -6,7 +6,6 @@ from collections import deque
 
 import os
 import napari
-from napari.utils.notifications import show_info
 from qtpy.QtCore import QTimer
 import numpy as np
 from scipy import ndimage as ndi
@@ -187,7 +186,6 @@ class ManualLabelsEditor(QWidget):
         root.addLayout(blink_row)
 
         self.btn_blink_toggle.clicked.connect(self._toggle_blink_running)
-        self._register_shortcuts()
         self.btn_undo.clicked.connect(self._undo_last)
         self.btn_redo.clicked.connect(self._redo_last)
         self.btn_blink_05.clicked.connect(
@@ -970,7 +968,6 @@ class ManualLabelsEditor(QWidget):
 
         @v.bind_key("Shift-f", overwrite=True)
         def _k_fill_and_next(viewer):
-            show_info("hotkey: Shift-f")
             # Shift+F = fill then auto-next-id
             self._fill_closed_shape_local_bbox()
             self._new_id()
@@ -988,9 +985,4 @@ def make_manual_labels_editor_widget(viewer: Viewer | None = None) -> QWidget:
             raise RuntimeError(
                 "No active napari viewer found. Open napari first."
             ) from e
-    w = ManualLabelsEditor(viewer)
-    try:
-        w._register_shortcuts()
-    except Exception as e:
-        print("[ManualLabelsEditor] hotkey register failed:", e)
-    return w
+    return ManualLabelsEditor(viewer)
