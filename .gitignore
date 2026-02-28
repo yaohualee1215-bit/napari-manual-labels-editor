@@ -127,3 +127,13 @@ curation_logs/
 
 # local backup files
 src/napari_manual_labels_editor/_widget.py.bak*
+
+# python caches
+__pycache__/
+*.pyc
+
+# mac
+.DS_Store
+
+# local backups
+*.bak*

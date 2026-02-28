@@ -17,13 +17,14 @@ This plugin operates on a **napari Labels layer** (background must be `0`) and p
 - **Merge (Shift-click)**: when merge is enabled, **Shift-click A**, then **Shift-click B** to merge **B → A** (into A).
 - **Fill closed shape**: draw a closed outline, then fill the enclosed region for the selected label.
 - **Filter small labels (to new layer)**: remove tiny fragments by area threshold while keeping the original layer unchanged.
-- **Undo / Redo**: revert recent edits made through the plugin’s actions.
+- **Undo / Redo**: revert recent edits made through the plugin’s actions (pixel edits only).
 - **Blink**: quick visibility toggling for spot-checking edits.
+- **Jump to label (J)**: jump to a specific label ID via a dialog (sets `selected_label`).
 
 Export:
 
-- **Save labels to TIFF (LZW)** (BigTIFF enabled).
-  If you provide a directory as “Save path”, the plugin auto-appends a filename.
+- **Save labels to TIFF** (LZW + BigTIFF enabled).
+  Use **Browse…** to pick an output path, then click **Save**.
 
 ## Compatibility
 
@@ -65,31 +66,33 @@ pip install -U "git+https://github.com/yaohualee1215-bit/napari-manual-labels-ed
 
 ### Hotkeys
 
-These are convenience hotkeys for faster manual editing.
-
 - `N` — **New ID (max+1)**
 - `F` — **Fill closed shape**
 - `Shift+F` — **Fill closed shape + Next ID**
+- `J` — **Jump to label ID** (dialog)
 
 Notes:
-- Hotkeys are captured by the napari viewer. If a key seems unresponsive, **click once on the canvas** to give the viewer focus.
+- Hotkeys are captured by the napari viewer. If a key seems unresponsive, click once on the canvas to give the viewer focus.
 - napari also has its own built-in tools/hotkeys (e.g., paint/fill modes); you can keep using those alongside this plugin.
+
+### UI behavior (narrow dock)
+
+- The dock panel can be resized narrower without hiding critical controls.
+- **Browse…** and **Save** are protected from being shrunk to zero width.
 
 ### Undo / Redo behavior
 
-- Undo/Redo reverts **recent pixel edits** made via the plugin’s actions (e.g., fill closed, delete, merge, relabel/filter).
-- **Changing the selected label / “New ID” alone does not change pixels**, so it is not treated as an edit step to undo.
+- Undo/Redo reverts recent pixel edits made via the plugin’s actions (e.g., fill closed, delete, merge, relabel/filter).
+- Changing the selected label / “New ID” alone does not change pixels, so it is not treated as an edit step to undo.
 - Standard behavior: if you Undo and then make a new edit, the Redo history is cleared.
 
 ### Export
 
-1. Set **Save path** (file path or directory)
-2. Click **Save labels to TIFF (LZW)**
+1. Click **Browse…** to choose an output file path (TIFF).
+2. Click **Save**.
 
 Notes:
 - TIFF writer uses `compression="lzw"` and `bigtiff=True`.
-- If “Save path” is a directory, output becomes:
-  `<dir>/<layer_name>_edited_LZW.tif` (or your configured suffix).
 
 ## Notes
 
@@ -100,7 +103,6 @@ If LZW read/write fails or is slow, install `imagecodecs`:
 ```bash
 conda install -c conda-forge imagecodecs
 ```
-
 
 ## License
 

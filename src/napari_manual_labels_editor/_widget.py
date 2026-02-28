@@ -6,7 +6,7 @@ from collections import deque
 
 import os
 import napari
-from qtpy.QtCore import QTimer
+from qtpy.QtCore import QTimer, QEvent, Qt
 import numpy as np
 from scipy import ndimage as ndi
 import tifffile as tiff
@@ -14,6 +14,10 @@ from magicgui import magicgui
 from napari.qt.threading import thread_worker
 from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QWidget, QPushButton, QHBoxLayout
+from qtpy.QtWidgets import QScrollArea
+from qtpy.QtWidgets import QFileDialog
+from qtpy.QtWidgets import QGroupBox
+from qtpy.QtWidgets import QInputDialog
 
 
 def _is_labels(layer) -> bool:
@@ -156,18 +160,153 @@ class ManualLabelsEditor(QWidget):
         from qtpy.QtWidgets import QVBoxLayout
 
         root = QVBoxLayout(self)
+
+        # ---- allow panel to shrink narrower than long button text ----
+        def _shrinkable(w):
+            try:
+                w.setMinimumWidth(0)
+                w.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+            except Exception:
+                pass
+
         root.addWidget(QLabel("Manual Labels Editor"))
         root.addWidget(self.status_label)
+
+        # ---------- 常用区（永远展开） ----------
         root.addWidget(self.btn_pick.native)
         root.addWidget(self.btn_stats.native)
-        root.addWidget(self.btn_new.native)
-        root.addWidget(self.btn_del.native)
-        root.addWidget(self.btn_relabel.native)
-        root.addWidget(self.btn_merge.native)
-        root.addWidget(self.btn_save.native)
+        edit_row = QHBoxLayout()
+        edit_row.addWidget(self.btn_new.native)
+        edit_row.addWidget(self.btn_del.native)
+        edit_row.addWidget(self.btn_merge.native)
+        root.addLayout(edit_row)
         root.addWidget(self.btn_fill_closed.native)
-        root.addWidget(self.btn_filter_area.native)
 
+        # ---------- Tools 区（默认折叠） ----------
+        tools_box = QGroupBox("Tools ▸")
+        tools_box.setCheckable(True)
+        tools_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        tools_box.setChecked(False)  # 默认收起
+
+        tools_layout = QVBoxLayout()
+        tools_layout.addWidget(self.btn_relabel.native)
+        tools_layout.addWidget(self.btn_filter_area.native)
+
+        # ---- Save controls (container widget) ----
+        save_container = QWidget()
+        save_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        save_container.setMinimumHeight(44)
+        save_container.setMaximumHeight(90)
+        save_container.setVisible(True)
+        save_v = QVBoxLayout(save_container)
+        save_v.setContentsMargins(0, 0, 0, 0)
+        save_v.setSpacing(6)
+
+        self._save_path = getattr(self, "_save_path", "")
+        btn_row = QHBoxLayout()
+        btn_row.setContentsMargins(0, 0, 0, 0)
+        btn_row.setSpacing(6)
+        btn_row.addStretch(1)
+
+        self.btn_browse = QPushButton("Browse…")
+        self.btn_browse.setMinimumWidth(90)
+        self.btn_browse.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+        self.btn_save_btn = QPushButton("Save")
+        self.btn_save_btn.setMinimumWidth(80)
+        self.btn_save_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+        btn_row.addWidget(self.btn_browse)
+        btn_row.addWidget(self.btn_save_btn)
+
+        def _pick_path() -> str:
+            fn, _ = QFileDialog.getSaveFileName(
+                self,
+                "Select output file",
+                self._save_path or "",
+                "TIFF (*.tif *.tiff);;All files (*)",
+            )
+            if fn:
+                self._save_path = fn
+            return self._save_path
+
+        def _do_save():
+            out_path = self._save_path
+            if not out_path:
+                self._set_status(
+                    "Please click Browse… to choose an output file first."
+                )
+                return
+            if not out_path:
+                self._set_status("Save cancelled.")
+                return
+            try:
+                # reuse existing magicgui save if available
+                if hasattr(self, "btn_save") and hasattr(
+                    self.btn_save, "out_path"
+                ):
+                    try:
+                        self.btn_save.out_path.value = out_path
+                    except Exception:
+                        pass
+                if hasattr(self, "btn_save"):
+                    self.btn_save()
+                else:
+                    self._set_status("No save function found (btn_save).")
+            except Exception as e:
+                self._set_status(f"Save failed: {e}")
+
+        self.btn_browse.clicked.connect(lambda: _pick_path())
+        self.btn_save_btn.clicked.connect(_do_save)
+        save_v.addLayout(btn_row)
+
+        # put Tools content into a scroll area so bottom controls (Browse/Save) never disappear
+        tools_inner = QWidget()
+        tools_inner.setMinimumWidth(0)
+        tools_inner.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        tools_inner.setLayout(tools_layout)
+
+        tools_scroll = QScrollArea()
+        tools_scroll.setWidgetResizable(True)
+        tools_scroll.setFrameShape(QScrollArea.NoFrame)
+        tools_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        tools_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        tools_scroll.setSizePolicy(
+            QSizePolicy.Expanding, QSizePolicy.Preferred
+        )
+        # 不要 setFixedHeight；让 dock 变窄/变短时再出现滚动
+        tools_scroll.setMinimumHeight(0)
+        tools_scroll.setWidget(tools_inner)
+
+        box_layout = QVBoxLayout()
+        # 关键：给 GroupBox 标题留空间，否则标题会被滚动区“顶住/遮住”
+        box_layout.setContentsMargins(6, 10, 6, 6)
+        box_layout.setSpacing(6)
+        box_layout.addWidget(tools_scroll, 1)
+
+        # ---- Save controls (fixed, not inside scroll) ----
+        box_layout.addWidget(save_container, 0)
+
+        # ---- DEBUG: check whether save_container is allocated space ----
+
+        tools_box.setLayout(box_layout)
+        tools_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+        root.addWidget(tools_box)
+
+        def _sync_tools_title(on: bool):
+            tools_box.setTitle("Tools ▾" if on else "Tools ▸")
+
+        tools_box.toggled.connect(_sync_tools_title)
+
+        def _refresh_tools_size(on: bool):
+            try:
+                tools_box.adjustSize()
+                self.adjustSize()
+            except Exception:
+                pass
+
+        tools_box.toggled.connect(_refresh_tools_size)
         undo_row = QHBoxLayout()
         undo_row.addWidget(self.btn_undo)
         undo_row.addWidget(self.btn_redo)
@@ -183,6 +322,56 @@ class ManualLabelsEditor(QWidget):
         blink_row.addWidget(self.btn_blink_05)
         blink_row.addWidget(self.btn_blink_1)
         blink_row.addWidget(self.btn_blink_2)
+        self.installEventFilter(self)
+        self._apply_compact_texts()
+
+        # ---- make dock shrinkable: apply policies to child widgets (order-safe) ----
+        def _apply_shrinkable_to_children():
+            try:
+                from qtpy.QtWidgets import QPushButton, QToolButton, QLineEdit
+            except Exception:
+                return
+            # ---- Global shrink policy: allow narrow dock, but keep critical buttons visible ----
+            KEEP_OBJ = {"mle_btn_browse", "mle_btn_save"}
+            KEEP_TEXT = {
+                "Browse…",
+                "Save",
+                "Undo",
+                "Redo",
+                "Blink ON",
+                "Blink OFF",
+                "0.5s",
+                "1s",
+                "2s",
+            }
+            for w in self.findChildren((QPushButton, QToolButton)):
+                try:
+                    obj = getattr(w, "objectName", lambda: "")()
+                    txt_ = getattr(w, "text", lambda: "")()
+                    if obj in KEEP_OBJ or txt_ in KEEP_TEXT:
+                        w.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+                        if obj == "mle_btn_browse" or txt_ == "Browse…":
+                            w.setMinimumWidth(100)
+                        elif obj == "mle_btn_save" or txt_ == "Save":
+                            w.setMinimumWidth(80)
+                        else:
+                            w.setMinimumWidth(60)
+                        w.setMaximumWidth(240)
+                        continue
+                    # default: shrinkable
+                    w.setMinimumWidth(0)
+                    w.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+                except Exception:
+                    pass
+            for w in self.findChildren(QLineEdit):
+                try:
+                    w.setMinimumWidth(0)
+                    w.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+                except Exception:
+                    pass
+
+        _apply_shrinkable_to_children()
+
         root.addLayout(blink_row)
 
         self.btn_blink_toggle.clicked.connect(self._toggle_blink_running)
@@ -934,6 +1123,38 @@ class ManualLabelsEditor(QWidget):
         return _btn
 
     # ---------- keyboard shortcuts ----------
+
+    def _jump_to_id(self, target_id: int) -> None:
+        """2D: jump to label ID, select it, and show only selected label."""
+        if getattr(self, "layer", None) is None:
+            self._set_status(
+                "No active Labels layer. Pick Active Layer first."
+            )
+            return
+
+        data = self.layer.data
+        if getattr(data, "ndim", None) != 2:
+            self._set_status("Jump supports 2D only.")
+            return
+
+        import numpy as np
+
+        coords = np.argwhere(data == int(target_id))
+        if coords.size == 0:
+            self._set_status(f"ID {target_id} not found.")
+            return
+
+        mins = coords.min(axis=0)
+        maxs = coords.max(axis=0)
+        cy, cx = ((mins + maxs) / 2).astype(int)
+
+        # jump + select + show selected only
+        self.viewer.camera.center = (int(cy), int(cx))
+        self.layer.selected_label = int(target_id)
+        self.layer.show_selected_label = True
+
+        self._set_status(f"Jumped to ID {target_id} and highlighted.")
+
     def _bind_layer_hotkeys(self) -> None:
         # Bind hotkeys on the active Labels layer (higher priority than viewer)
         if self.layer is None:
@@ -953,6 +1174,21 @@ class ManualLabelsEditor(QWidget):
             self._fill_closed_shape_local_bbox()
             self._new_id()
 
+        @L.bind_key("j", overwrite=True)
+        def _lk_jump_to_id(layer):
+            default = int(getattr(self.layer, "selected_label", 1) or 1)
+            target_id, ok = QInputDialog.getInt(
+                self,
+                "Jump to label",
+                "Label ID:",
+                value=default,
+                min=1,
+                max=2**31 - 1,
+            )
+            if not ok:
+                return
+            self._jump_to_id(int(target_id))
+
     def _register_shortcuts(self) -> None:
         v = self.viewer
 
@@ -969,13 +1205,72 @@ class ManualLabelsEditor(QWidget):
         @v.bind_key("Shift-f", overwrite=True)
         def _k_fill_and_next(viewer):
             # Shift+F = fill then auto-next-id
+
             self._fill_closed_shape_local_bbox()
             self._new_id()
 
+    # -------------------------
+    # napari widget factory (MUST be top-level)
+    # -------------------------
 
-# -------------------------
-# napari widget factory (MUST be top-level)
-# -------------------------
+    # ---- auto-compact button texts when dock is narrow ----
+
+    def _apply_compact_texts(self) -> None:
+        """Switch magicgui call_button labels between long/short based on widget width."""
+        w = int(self.width())
+        compact = w < 520  # tweak threshold
+
+        def _btn(fgui):
+            # magicgui FunctionGui: call_button.native is the real QPushButton
+            try:
+                cb = getattr(fgui, "call_button", None)
+                if cb is not None and hasattr(cb, "native"):
+                    return cb.native
+            except Exception:
+                pass
+            # fallback: search inside container
+            try:
+                from qtpy.QtWidgets import QPushButton
+
+                n = getattr(fgui, "native", None)
+                if n is not None:
+                    b = n.findChild(QPushButton)
+                    return b
+            except Exception:
+                pass
+            return None
+
+        pairs = [
+            (_btn(getattr(self, "btn_new", None)), "➕ New ID (max+1)", "New"),
+            (
+                _btn(getattr(self, "btn_del", None)),
+                "❌ Delete selected ID",
+                "Delete",
+            ),
+            (
+                _btn(getattr(self, "btn_merge", None)),
+                "Merge: Shift+A+B → A",
+                "Merge",
+            ),
+        ]
+        for b, long_t, short_t in pairs:
+            if b is None:
+                continue
+            try:
+                b.setToolTip(long_t)
+                b.setText(short_t if compact else long_t)
+            except Exception:
+                pass
+
+    def eventFilter(self, obj, event):
+        try:
+            if event.type() == QEvent.Resize:
+                self._apply_compact_texts()
+        except Exception:
+            pass
+        return super().eventFilter(obj, event)
+
+
 def make_manual_labels_editor_widget(viewer: Viewer | None = None) -> QWidget:
     """Napari widget factory (npe2)."""
     if viewer is None:
